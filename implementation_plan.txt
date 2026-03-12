@@ -1,0 +1,120 @@
+from flask import Blueprint, request, jsonify
+from auth_routes import token_required, role_required
+from models import db, Vehicle, ServiceRequest, ServiceProvider
+
+customer_bp = Blueprint('customer', __name__)
+
+@customer_bp.route('/vehicles', methods=['GET'])
+@token_required
+@role_required('customer')
+def get_vehicles(current_user):
+    vehicles = Vehicle.query.filter_by(user_id=current_user.id).all()
+    return jsonify([{
+        'id': v.id,
+        'make': v.make,
+        'model': v.model,
+        'year': v.year,
+        'license_plate': v.license_plate
+    } for v in vehicles]), 200
+
+@customer_bp.route('/vehicles', methods=['POST'])
+@token_required
+@role_required('customer')
+def add_vehicle(current_user):
+    data = request.get_json()
+    
+    if not all(k in data for k in ('make', 'model', 'license_plate')):
+        return jsonify({'message': 'Missing required fields'}), 400
+        
+    new_vehicle = Vehicle(
+        user_id=current_user.id,
+        make=data['make'],
+        model=data['model'],
+        year=data.get('year'),
+        license_plate=data['license_plate']
+    )
+    
+    db.session.add(new_vehicle)
+    db.session.commit()
+    
+    return jsonify({'message': 'Vehicle added successfully', 'id': new_vehicle.id}), 201
+
+@customer_bp.route('/requests', methods=['POST'])
+@token_required
+@role_required('customer')
+def create_request(current_user):
+    data = request.get_json()
+    
+    if not all(k in data for k in ('location_text', 'issue_description')):
+        return jsonify({'message': 'Missing required fields'}), 400
+        
+    new_request = ServiceRequest(
+        customer_id=current_user.id,
+        vehicle_id=data.get('vehicle_id'),
+        location_text=data['location_text'],
+        location_lat=data.get('lat'),
+        location_lng=data.get('lng'),
+        issue_description=data['issue_description'],
+        status='PENDING'
+    )
+    
+    db.session.add(new_request)
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Service request created',
+        'request': new_request.to_dict()
+    }), 201
+
+@customer_bp.route('/requests', methods=['GET'])
+@token_required
+@role_required('customer')
+def get_requests(current_user):
+    requests = ServiceRequest.query.filter_by(customer_id=current_user.id).order_by(ServiceRequest.created_at.desc()).all()
+    return jsonify([req.to_dict() for req in requests]), 200
+
+@customer_bp.route('/requests/<int:request_id>', methods=['GET'])
+@token_required
+@role_required('customer')
+def get_request_detail(current_user, request_id):
+    req = ServiceRequest.query.filter_by(id=request_id, customer_id=current_user.id).first()
+    if not req:
+        return jsonify({'message': 'Request not found'}), 404
+    return jsonify(req.to_dict()), 200
+
+@customer_bp.route('/requests/<int:request_id>/rate', methods=['POST'])
+@token_required
+@role_required('customer')
+def rate_request(current_user, request_id):
+    data = request.get_json()
+    rating = data.get('rating')
+    
+    if not rating or not (1 <= int(rating) <= 5):
+        return jsonify({'message': 'Rating must be between 1 and 5'}), 400
+        
+    req = ServiceRequest.query.filter_by(id=request_id, customer_id=current_user.id).first()
+    
+    if not req:
+        return jsonify({'message': 'Request not found'}), 404
+        
+    if req.status != 'COMPLETED':
+        return jsonify({'message': 'Can only rate completed requests'}), 400
+        
+    req.customer_rating = int(rating)
+    req.review_notes = data.get('notes', '')
+    
+    # Update provider average rating
+    if req.provider_id:
+        provider = ServiceProvider.query.get(req.provider_id)
+        # Simple moving average approximation for simplicity, in a real app query all ratings
+        jobs_count = ServiceRequest.query.filter_by(provider_id=provider.id, status='COMPLETED').filter(ServiceRequest.customer_rating != None).count()
+        if jobs_count == 0:
+            provider.average_rating = rating
+        else:
+            # Recalculate true average
+            all_ratings = [r.customer_rating for r in ServiceRequest.query.filter_by(provider_id=provider.id, status='COMPLETED').filter(ServiceRequest.customer_rating != None).all()]
+            provider.average_rating = sum(all_ratings) / len(all_ratings)
+            
+    db.session.commit()
+    
+    return jsonify({'message': 'Rating submitted successfully'}), 200

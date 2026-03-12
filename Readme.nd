@@ -1,0 +1,129 @@
+# Automobile Breakdown Service Coordination System
+
+A full-stack application for coordinating roadside assistance designed to connect customers with service providers, managed by an admin dashboard.
+
+## Features
+- **Role-Based Access Control:** Distinct experiences for Customers, Service Providers, and Admins.
+- **Customer Portal:** Add vehicles, create service requests with location parsing, view request history, and rate completed services.
+- **Service Provider Portal:** Find available local jobs, accept requests, update job statuses, and receive ratings.
+- **System Admin Dashboard:** High-level overview analytics, manage user accounts, and track all service requests across the platform.
+
+## Tech Stack
+- **Backend:** Python + Flask, Flask-SQLAlchemy, PyJWT for authentication.
+- **Frontend:** React (CDN stand-alone build for zero-build environments), TailwindCSS for styling.
+- **Database:** SQLite (default for development/testing), easily adjustable to PostgreSQL via the `DATABASE_URL` environment variable.
+
+---
+
+## 🚀 Setup Instructions (Local Development)
+
+### 1. Backend Setup
+1. Open a terminal and navigate to the `backend` directory.
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   ```
+3. Activate the virtual environment:
+   - Windows: `.\venv\Scripts\activate`
+   - Mac/Linux: `source venv/bin/activate`
+4. Install dependencies:
+   ```bash
+   pip install Flask Flask-SQLAlchemy Flask-Bcrypt PyJWT psycopg2-binary flask-cors python-dotenv
+   ```
+5. Seed the database with the initial Admin user:
+   ```bash
+   python seed.py
+   ```
+   *(This creates an admin account: Email: `admin@auto.com`, Password: `admin123`)*
+6. Run the local backend server:
+   ```bash
+   python app.py
+   ```
+   *The API will be available at `http://localhost:5000/api`*
+
+### 2. Frontend Setup
+The frontend is built using a modern, build-less strategy perfect for rapid deployment and testing without Node.js requirements.
+1. Simply open the `frontend/index.html` file in any modern web browser.
+2. Alternatively, to avoid CORS issues if opening directly from file (depending on your browser), run a simple HTTP server in the `frontend` directory:
+   ```bash
+   # From the frontend directory:
+   python -m http.server 8000
+   ```
+3. Open your browser and navigate to `http://localhost:8000`.
+
+---
+
+## 🌐 Deployment Guide (Render)
+
+This application is architected to be perfectly suited for deployment on [Render](https://render.com/).
+
+### Step 1: Managed PostgreSQL Database (Render)
+1. In your Render Dashboard, click **New +** > **PostgreSQL**.
+2. Name the database (e.g., `auto-breakdown-db`).
+3. Once created, copy the **Internal Database URL**.
+
+### Step 2: Backend Web Service (Render)
+1. Create a `requirements.txt` in the root of your `backend` directory:
+   ```text
+   Flask
+   Flask-SQLAlchemy
+   Flask-Bcrypt
+   PyJWT
+   psycopg2-binary
+   flask-cors
+   python-dotenv
+   gunicorn
+   ```
+2. Create a `Procfile` in the `backend` directory:
+   ```text
+   web: gunicorn app:create_app()
+   ```
+3. In Render, select **New +** > **Web Service**.
+4. Connect your GitHub repository containing this code.
+5. Set the Root Directory to `backend`.
+6. Environment: `Python 3`
+7. Build Command: `pip install -r requirements.txt`
+8. Start Command: `gunicorn "app:create_app()"`
+9. Under **Advanced**, add Environment Variables:
+   - `DATABASE_URL`: Add the URL from Step 1.
+   - `SECRET_KEY`: Add a long random string (e.g., `production-super-secret-key-928374`).
+   - `CORS_ORIGINS`: Add your frontend URL (once deployed).
+
+### Step 3: Frontend Static Site (Render)
+1. Since the frontend is build-less (using CDN React/Babel), it can be hosted as a simple Static Site.
+2. In Render, select **New +** > **Static Site**.
+3. Connect your shared repository.
+4. Set the Root Directory to `frontend`.
+5. Clear out the Build Command entirely (leave empty).
+6. Publish Directory: `.` (or specifically the `frontend` folder).
+7. **Important Note:** In `frontend/app.js`, change the `API_URL` variable at the top of the file from `http://localhost:5000/api` to your new deployed Render Backend URL (e.g., `https://my-backend.onrender.com/api`).
+
+---
+
+## 📋 Testing Checklist
+
+To manually verify the platform, follow this flow:
+
+1. **Admin Verification:**
+   - [ ] Log in with `admin@auto.com` / `admin123`.
+   - [ ] Verify Dashboard loads statistics (initially mostly zeros).
+
+2. **Customer Registration & Request:**
+   - [ ] Open a new incognito window, click "Sign Up".
+   - [ ] Register as a "Customer needing help".
+   - [ ] Navigate to the "My Vehicles" tab and add a vehicle (e.g., Toyota Camry).
+   - [ ] Click "New Request". Select your vehicle, enter a location, and describe a fake issue.
+   - [ ] Verify the request appears under "My Requests" with a status of `PENDING`.
+
+3. **Provider Registration & Job Acceptance:**
+   - [ ] Open a third window/browser, click "Sign Up".
+   - [ ] Register as a "Service Provider / Tow Truck" (Be sure to enter a Company Name).
+   - [ ] Under "Find Jobs", verify you see the Customer's pending request.
+   - [ ] Click "Accept Job". The request should disappear from "Find Jobs" and move to "My Active & Past Jobs" with status `ACCEPTED`.
+
+4. **Lifecycle & Rating Completion:**
+   - [ ] As the Provider, change the status to `IN_PROGRESS`.
+   - [ ] Change the status to `COMPLETED`. When prompted, enter a final cost (e.g., 150).
+   - [ ] Switch back to the Customer browser window and refresh.
+   - [ ] The request should show `COMPLETED`. Click the 5-star rating scale to rate the provider.
+   - [ ] Switch back to the Admin browser window. Verify the revenue, completed jobs count, and client counts have all updated.
