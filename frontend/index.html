@@ -83,7 +83,7 @@
 
     <script type="text/babel">
         const { useState, useEffect, useContext, createContext, useRef } = React;
-        
+        const API_BASE = "https://autorescue-api.onrender.com/api";
         // Icon component wrapper
         const Icon = ({ name, size = 24, className = "" }) => {
             const iconMap = {
@@ -149,20 +149,40 @@
             }, []);
 
             const login = async (email, password, role) => {
-                const mockUser = { id: 1, name: "Alex Rider", email, role };
-                localStorage.setItem("token", "mock_token");
-                localStorage.setItem("user", JSON.stringify(mockUser));
-                setUser(mockUser);
-                return { success: true, message: "Login successful!" };
-            };
+    const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, password: password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
+        return { success: true };
+    } else {
+        alert(data.message);
+        return { success: false };
+    }
+};
 
             const register = async (name, email, password, role) => {
-                const mockUser = { id: Date.now(), name, email, role };
-                localStorage.setItem("token", "mock_token_" + Date.now());
-                localStorage.setItem("user", JSON.stringify(mockUser));
-                setUser(mockUser);
-                return { success: true, message: "Registration successful!" };
-            };
+    const res = await fetch(`${API_BASE}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, email: email, password: password, role: role })
+    });
+    const data = await res.json();
+    if (res.ok) {
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUser(data.user);
+        return { success: true };
+    } else {
+        alert(data.message);
+        return { success: false };
+    }
+};
 
             const logout = () => {
                 localStorage.clear();
