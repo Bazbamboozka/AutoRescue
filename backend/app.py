@@ -39,7 +39,7 @@ def create_app():
     # Create tables if not exist
     with app.app_context():
         db.drop_all()
-        db.create_all()
+        
         
         # Create default admin if not exists
         from models import User
