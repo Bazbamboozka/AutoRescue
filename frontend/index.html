@@ -159,7 +159,7 @@
                 setLoading(false);
             }, []);
 
-            const login = async (email, password, role) => {
+            const login = async (email, password) => {
     const res = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -272,31 +272,46 @@
             });
 
             const handleSubmit = async (e) => {
-                e.preventDefault();
-                setIsLoading(true);
-                
-                if (!isLogin) {
-                    if (formData.password !== formData.confirmPassword) {
-                        alert("Passwords don't match!");
-                        setIsLoading(false);
-                        return;
-                    }
-                    if (formData.password.length < 6) {
-                        alert("Password must be at least 6 characters!");
-                        setIsLoading(false);
-                        return;
-                    }
-                    await register(formData.name, formData.email, formData.password, selectedRole);
-                } else {
-                    await login(formData.email, formData.password, selectedRole);
-                }
-                setIsLoading(false);
-            };
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+
+        if (!isLogin) {
+
+            if (formData.password !== formData.confirmPassword) {
+                alert("Passwords don't match");
+                return;
+            }
+
+            await register(
+                formData.name,
+                formData.email,
+                formData.password,
+                selectedRole
+            );
+
+        } else {
+
+            await login(
+                formData.email,
+                formData.password
+            );
+
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert("Something went wrong. Check console.");
+    }
+
+    setIsLoading(false);
+};
+
 
             const roles = [
                 { id: "customer", icon: "User", title: "Customer" },
-                { id: "provider", icon: "Wrench", title: "Provider" },
-                { id: "admin", icon: "ShieldCheck", title: "Admin" }
+                { id: "provider", icon: "Wrench", title: "Provider" }
             ];
 
             return (
@@ -860,7 +875,18 @@ const fetchMyJobs = async () => {
     } catch(e) { console.error(e); }
 };
 
-useEffect(() => { fetchAvailable(); fetchMyJobs(); }, []);
+useEffect(() => {
+    fetchAvailable();
+    fetchMyJobs();
+
+    const interval = setInterval(() => {
+        fetchAvailable();
+        fetchMyJobs();
+    }, 5000); // refresh every 5 seconds
+
+    return () => clearInterval(interval);
+}, []);
+
 
 const handleAccept = async (job) => {
     const price = prompt("Enter your price (₹):") || 0;
