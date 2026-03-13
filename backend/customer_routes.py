@@ -19,6 +19,7 @@ def get_requests(current_user):
             "id": r.id,
             "location_text": r.location_text,
             "issue_description": r.issue_description,
+            "vehicle": r.vehicle,
             "status": r.status,
             "price": r.price,
             "rating": r.rating,
@@ -36,10 +37,12 @@ def create_request(current_user):
     data = request.json
 
     req = Request(
-        location_text=data.get("location_text"),
-        issue_description=data.get("issue_description"),
-        customer_id=current_user.id
-    )
+    location_text=data.get("location_text"),
+    issue_description=data.get("issue_description"),
+    vehicle=data.get("vehicle"),
+    customer_id=current_user.id
+)
+
 
     db.session.add(req)
     db.session.commit()

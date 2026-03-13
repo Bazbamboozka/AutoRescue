@@ -18,6 +18,7 @@ def get_users(current_user):
         result.append({
             "id": u.id,
             "name": u.name,
+            "vehicle": r.vehicle,
             "email": u.email,
             "role": u.role,
             "is_active": u.is_active

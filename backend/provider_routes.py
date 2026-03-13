@@ -19,6 +19,7 @@ def get_requests(current_user):
             "id": r.id,
             "location_text": r.location_text,
             "issue_description": r.issue_description,
+            "vehicle": r.vehicle,
             "status": r.status,
             "provider_id": r.provider_id,
             "price": r.price,

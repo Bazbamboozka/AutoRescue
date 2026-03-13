@@ -532,12 +532,37 @@
                 "Radiator Leak",
                 "Other"
             ];
+            const getApproxPrice = (issue) => {
+
+    const priceRanges = {
+        "Flat Tire": [300, 600],
+        "Engine Failure": [2000, 5000],
+        "Battery Dead": [800, 1500],
+        "Brake Failure": [1500, 3500],
+        "Transmission Issue": [2500, 6000],
+        "Overheating": [1000, 3000],
+        "Starter Motor Failure": [1200, 2500],
+        "Fuel Pump Failure": [1500, 3000],
+        "Alternator Failure": [2000, 4000],
+        "Radiator Leak": [1200, 2800],
+        "Other": [500, 2000]
+    };
+
+    const range = priceRanges[issue] || [500,1500];
+
+    return Math.floor(Math.random() * (range[1] - range[0])) + range[0];
+};
+
 
             const [newRequest, setNewRequest] = useState({
-                issue: '',
-                customIssue: '',
-                location: ''
-            });
+    vehicle: '',
+    issue: '',
+    customIssue: '',
+    location: ''
+});
+
+const [approxPrice, setApproxPrice] = useState(null);
+
 
             const fetchRequests = async () => {
     try {
@@ -546,18 +571,34 @@
     } catch(e) { console.error(e); }
 };
 
-useEffect(() => { fetchRequests(); }, []);
+useEffect(() => {
+    fetchRequests();
+
+    const interval = setInterval(() => {
+        fetchRequests();
+    }, 5000); // every 5 seconds
+
+    return () => clearInterval(interval);
+}, []);
+
 
 const handleCreateRequest = async () => {
     const issue = newRequest.issue === 'Other' ? newRequest.customIssue : newRequest.issue;
     try {
         const res = await authFetch(`${API_BASE}/customer/requests`, {
             method: 'POST',
-            body: JSON.stringify({ issue_description: issue, location_text: newRequest.location })
+            body: JSON.stringify({
+    issue_description: issue,
+    location_text: newRequest.location,
+    vehicle: newRequest.vehicle
+})
+
         });
         if (res.ok) {
             setShowNewRequestModal(false);
-            setNewRequest({ issue: '', customIssue: '', location: '' });
+            setNewRequest({ vehicle:'', issue:'', customIssue:'', location:'' });
+setApproxPrice(null);
+
             fetchRequests();
         } else {
             const d = await res.json();
@@ -642,9 +683,15 @@ const handleCreateRequest = async () => {
                                                         </div>
                                                         <div>
                                                             <h4 className="font-bold text-gray-800">{req.issue_description}</h4>
-                                                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                                                                <Icon name="MapPin" size={12} /> {req.location_text}
-                                                            </p>
+
+<p className="text-xs text-gray-500">
+Vehicle: {req.vehicle}
+</p>
+
+<p className="text-sm text-gray-500 flex items-center gap-1">
+<Icon name="MapPin" size={12} /> {req.location_text}
+</p>
+
                                                         </div>
                                                     </div>
                                                     <div className="text-right">
@@ -745,11 +792,37 @@ const handleCreateRequest = async () => {
                             <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
                                 <h3 className="text-xl font-bold mb-4">New Service Request</h3>
                                 <div className="space-y-4">
+                                <div>
+<label className="block text-sm font-bold text-gray-700 mb-2">
+Vehicle Type
+</label>
+
+<select
+value={newRequest.vehicle}
+onChange={(e)=>setNewRequest({...newRequest,vehicle:e.target.value})}
+className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-orange-500 outline-none">
+
+<option value="">Select vehicle</option>
+<option value="Bike">Bike</option>
+<option value="Scooter">Scooter</option>
+<option value="Car">Car</option>
+<option value="SUV">SUV</option>
+<option value="Truck">Truck</option>
+<option value="Bus">Bus</option>
+
+</select>
+</div>
+
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Issue Type</label>
                                         <select 
                                             value={newRequest.issue}
-                                            onChange={(e) => setNewRequest({...newRequest, issue: e.target.value})}
+                                            onChange={(e) => {
+    const issue = e.target.value;
+    setNewRequest({...newRequest, issue: issue});
+    setApproxPrice(getApproxPrice(issue));
+}}
+
                                             className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-orange-500 outline-none"
                                         >
                                             <option value="">Select issue...</option>
@@ -758,6 +831,12 @@ const handleCreateRequest = async () => {
                                             ))}
                                         </select>
                                     </div>
+                                    {approxPrice && (
+    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+        Approx Price: ₹{approxPrice}
+    </div>
+)}
+
                                     
                                     {newRequest.issue === 'Other' && (
                                         <div>

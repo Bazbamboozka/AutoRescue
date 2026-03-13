@@ -23,6 +23,8 @@ class Request(db.Model):
 
     location_text = db.Column(db.String(200))
     issue_description = db.Column(db.String(500))
+    vehicle = db.Column(db.String(50))
+
 
     status = db.Column(db.String(50), default="pending")
 
