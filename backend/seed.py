@@ -13,7 +13,7 @@ with app.app_context():
             name="Admin",
             email="admin@auto.com",
             password_hash=bcrypt.generate_password_hash("admin123").decode(),
-            role="admin"
+            role="admin",
             is_active=True
         )
 
