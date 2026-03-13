@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-
+import datetime
 db = SQLAlchemy()
 
 
@@ -13,6 +13,7 @@ class User(db.Model):
     role = db.Column(db.String(50), nullable=False)
     phone = db.Column(db.String(20))
     company_name = db.Column(db.String(120))
+    is_active = db.Column(db.Boolean, default=True)
 
 
 class Request(db.Model):
@@ -27,3 +28,6 @@ class Request(db.Model):
 
     customer_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     provider_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    price = db.Column(db.Float, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    rating = db.Column(db.Integer, nullable=True)

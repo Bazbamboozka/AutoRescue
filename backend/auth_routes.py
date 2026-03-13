@@ -59,6 +59,9 @@ def role_required(role):
 def register():
     data = request.json
 
+    if data.get("role") == "admin":
+        return jsonify({"message": "Cannot self-register as admin"}), 403
+
     password_hash = bcrypt.generate_password_hash(data["password"]).decode()
 
     user = User(
@@ -92,6 +95,9 @@ def login():
 
     if not user:
         return jsonify({"message": "Invalid credentials"}), 401
+
+    if not user.is_active:
+        return jsonify({"message": "Account is banned"}), 403
 
     if not bcrypt.check_password_hash(user.password_hash, data["password"]):
         return jsonify({"message": "Invalid credentials"}), 401

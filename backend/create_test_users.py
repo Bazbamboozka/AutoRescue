@@ -13,6 +13,7 @@ with app.app_context():
             email="customer@test.com",
             password_hash=bcrypt.generate_password_hash("pass").decode(),
             role="customer"
+            is_active=True
         )
         db.session.add(customer)
     
@@ -24,6 +25,7 @@ with app.app_context():
             password_hash=bcrypt.generate_password_hash("pass").decode(),
             role="provider",
             company_name="Mike's Repair Shop"
+            is_active=True
         )
         db.session.add(provider)
     

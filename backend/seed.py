@@ -14,6 +14,7 @@ with app.app_context():
             email="admin@auto.com",
             password_hash=bcrypt.generate_password_hash("admin123").decode(),
             role="admin"
+            is_active=True
         )
 
         db.session.add(admin)
