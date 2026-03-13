@@ -4,10 +4,8 @@ from auth_routes import token_required, role_required
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
-# -------------------------
-# GET ALL USERS
-# -------------------------
 
+# GET ALL USERS
 @admin_bp.route("/users", methods=["GET"])
 @token_required
 @role_required("admin")
@@ -16,7 +14,6 @@ def get_users(current_user):
     users = User.query.all()
 
     result = []
-
     for u in users:
         result.append({
             "id": u.id,
@@ -29,10 +26,7 @@ def get_users(current_user):
     return jsonify(result)
 
 
-# -------------------------
 # GET ALL REQUESTS
-# -------------------------
-
 @admin_bp.route("/requests", methods=["GET"])
 @token_required
 @role_required("admin")
@@ -41,7 +35,6 @@ def get_requests(current_user):
     requests = Request.query.all()
 
     result = []
-
     for r in requests:
         result.append({
             "id": r.id,
@@ -57,10 +50,7 @@ def get_requests(current_user):
     return jsonify(result)
 
 
-# -------------------------
 # DELETE USER
-# -------------------------
-
 @admin_bp.route("/users/<int:user_id>", methods=["DELETE"])
 @token_required
 @role_required("admin")
