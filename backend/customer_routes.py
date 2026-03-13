@@ -58,7 +58,7 @@ def create_request(current_user):
     })
 
 
-    @customer_bp.route("/requests/<int:req_id>/rate", methods=["POST"])
+@customer_bp.route("/requests/<int:req_id>/rate", methods=["POST"])
 @token_required
 @role_required("customer")
 def rate_request(current_user, req_id):

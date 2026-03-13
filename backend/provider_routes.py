@@ -79,7 +79,7 @@ def update_status(current_user, req_id):
     return jsonify({"message": "Status updated"})
 
 
-    @provider_bp.route("/my-jobs", methods=["GET"])
+@provider_bp.route("/my-jobs", methods=["GET"])
 @token_required
 @role_required("provider")
 def get_my_jobs(current_user):
