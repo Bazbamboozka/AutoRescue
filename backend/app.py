@@ -38,6 +38,26 @@ def create_app():
     # Create tables if not exist
     with app.app_context():
         db.create_all()
+        
+        # Create default admin if not exists
+        from models import User
+        from flask_bcrypt import Bcrypt
+        bcrypt = Bcrypt()
+        
+        admin = User.query.filter_by(email="admin@gmail.com").first()
+        if not admin:
+            admin = User(
+                name="Admin",
+                email="admin@gmail.com",
+                password_hash=bcrypt.generate_password_hash("admin123").decode(),
+                role="admin",
+                is_active=True
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("✅ Default admin created")
+        else:
+            print("✅ Admin already exists")
 
     return app
 
