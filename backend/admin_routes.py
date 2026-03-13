@@ -49,8 +49,8 @@ def get_requests(current_user):
     return jsonify(result)
 
     @admin_bp.route("/users/<int:user_id>", methods=["DELETE"])
-@token_required
-@role_required("admin")
+    @token_required
+    @role_required("admin")
 def delete_user(current_user, user_id):
     user = User.query.get(user_id)
     if not user:
@@ -61,9 +61,9 @@ def delete_user(current_user, user_id):
     return jsonify({"message": "User deleted"})
 
 
-@admin_bp.route("/users/<int:user_id>/toggle-status", methods=["POST"])
-@token_required
-@role_required("admin")
+    @admin_bp.route("/users/<int:user_id>/toggle-status", methods=["POST"])
+    @token_required
+    @role_required("admin")
 def toggle_user_status(current_user, user_id):
     user = User.query.get(user_id)
     if not user:
