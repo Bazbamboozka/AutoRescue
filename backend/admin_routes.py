@@ -48,27 +48,40 @@ def get_requests(current_user):
 
     return jsonify(result)
 
-    @admin_bp.route("/users/<int:user_id>", methods=["DELETE"])
-    @token_required
-    @role_required("admin")
+
+@admin_bp.route("/users/<int:user_id>", methods=["DELETE"])
+@token_required
+@role_required("admin")
 def delete_user(current_user, user_id):
+
     user = User.query.get(user_id)
+
     if not user:
         return jsonify({"message": "User not found"}), 404
+
     from models import db
     db.session.delete(user)
     db.session.commit()
+
     return jsonify({"message": "User deleted"})
 
 
-    @admin_bp.route("/users/<int:user_id>/toggle-status", methods=["POST"])
-    @token_required
-    @role_required("admin")
+@admin_bp.route("/users/<int:user_id>/toggle-status", methods=["POST"])
+@token_required
+@role_required("admin")
 def toggle_user_status(current_user, user_id):
+
     user = User.query.get(user_id)
+
     if not user:
         return jsonify({"message": "User not found"}), 404
+
     user.is_active = not user.is_active
+
     from models import db
     db.session.commit()
-    return jsonify({"message": "Status updated", "is_active": user.is_active})
+
+    return jsonify({
+        "message": "Status updated",
+        "is_active": user.is_active
+    })
