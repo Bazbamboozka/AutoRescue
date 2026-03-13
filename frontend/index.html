@@ -488,10 +488,7 @@
         function CustomerDashboard() {
             const { user } = useAuth();
             const [activeTab, setActiveTab] = useState('dashboard');
-            const [requests, setRequests] = useState([
-                { id: 101, issue: "Flat Tire", location: "Downtown St", status: "Completed", price: 450, date: "2023-10-24", time: "14:30" },
-                { id: 102, issue: "Engine Overheat", location: "Highway 5", status: "In Progress", price: null, date: "2023-10-26", time: "09:15" },
-            ]);
+            const [requests, setRequests] = useState([]);
             const [showReviewModal, setShowReviewModal] = useState(null);
             const [showNewRequestModal, setShowNewRequestModal] = useState(false);
             const [showSupportModal, setShowSupportModal] = useState(false);
@@ -813,10 +810,7 @@
         function ProviderDashboard() {
             const { user } = useAuth();
             const [activeTab, setActiveTab] = useState('jobs');
-            const [availableJobs, setAvailableJobs] = useState([
-                { id: 201, issue: "Flat Tire", location: "45 Oak St", distance: "2.4 km", price: 350, time: "10:30" },
-                { id: 202, issue: "Battery Jump", location: "Airport Rd", distance: "5.1 km", price: 250, time: "11:45" },
-            ]);
+            const [availableJobs, setAvailableJobs] = useState([]);
             const [myJobs, setMyJobs] = useState([]);
 
             const handleAccept = (job) => {
@@ -970,20 +964,9 @@
         function AdminDashboard() {
             const { user } = useAuth();
             const [activeTab, setActiveTab] = useState('users');
-            const [users, setUsers] = useState([
-                { id: 1, name: "John Doe", role: "customer", status: "Active" },
-                { id: 2, name: "Mike Ross", role: "provider", status: "Active" },
-                { id: 3, name: "Sarah Lee", role: "customer", status: "Banned" },
-                { id: 4, name: "David Kim", role: "provider", status: "Active" },
-            ]);
+            const [users, setUsers] = useState([]);
             
-            const [requests] = useState([
-                { id: 101, issue: "Flat Tire", price: 450, status: "Completed" },
-                { id: 102, issue: "Battery Dead", price: 250, status: "Completed" },
-                { id: 103, issue: "Engine Failure", price: 1200, status: "Completed" },
-                { id: 104, issue: "Brake Failure", price: 800, status: "Completed" },
-                { id: 105, issue: "Transmission Issue", price: 1500, status: "Completed" },
-            ]);
+            const [requests] = useState([]);
 
             const pieChartRef = useRef(null);
             const barChartRef = useRef(null);
