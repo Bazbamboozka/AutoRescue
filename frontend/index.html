@@ -277,21 +277,29 @@
 
     try {
 
-        if (!isLogin) {
+   if (!isLogin) {
 
-            if (formData.password !== formData.confirmPassword) {
-                alert("Passwords don't match");
-                return;
-            }
+    // 🚫 Prevent admin registration
+    if (selectedRole === "admin") {
+        alert("Admin accounts cannot be registered.");
+        setIsLoading(false);
+        return;
+    }
 
-            await register(
-                formData.name,
-                formData.email,
-                formData.password,
-                selectedRole
-            );
+    if (formData.password !== formData.confirmPassword) {
+        alert("Passwords don't match");
+        setIsLoading(false);
+        return;
+    }
 
-        } else {
+    await register(
+        formData.name,
+        formData.email,
+        formData.password,
+        selectedRole
+    );
+
+}else {
 
             await login(
                 formData.email,
@@ -311,7 +319,8 @@
 
             const roles = [
                 { id: "customer", icon: "User", title: "Customer" },
-                { id: "provider", icon: "Wrench", title: "Provider" }
+                { id: "provider", icon: "Wrench", title: "Provider" },
+                 { id: "admin", icon: "ShieldCheck", title: "Admin" }
             ];
 
             return (
