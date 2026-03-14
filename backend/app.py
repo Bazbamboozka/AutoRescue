@@ -36,9 +36,9 @@ def create_app():
     def health():
         return jsonify({"status": "ok"})
 
-    # Create tables if not exist
+    # Create tables if not exist    
     with app.app_context():
-        db.drop_all()
+    db.create_all()
         
         
         # Create default admin if not exists
