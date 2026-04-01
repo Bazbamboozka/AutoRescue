@@ -18,6 +18,14 @@
     <!-- Chart.js for graphs -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+    <!-- Leaflet.js for interactive maps (free, no API key) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        .leaflet-container { border-radius: 12px; }
+    </style>
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -85,7 +93,7 @@
         const { useState, useEffect, useContext, createContext, useRef } = React;
         const API_BASE = "https://autorescue-api.onrender.com/api";
         const authFetch = (url, opts = {}) => {
-    const token = localStorage.getItem("token");
+    const token = sessionStorage.getItem("token");
     return fetch(url, {
         ...opts,
         headers: {
@@ -154,9 +162,30 @@
             const [loading, setLoading] = useState(true);
 
             useEffect(() => {
-                const stored = localStorage.getItem("user");
-                if (stored) setUser(JSON.parse(stored));
-                setLoading(false);
+                const stored = sessionStorage.getItem("user");
+                const token = sessionStorage.getItem("token");
+
+                if (!stored || !token) {
+                    setLoading(false);
+                    return;
+                }
+
+                // Validate token with backend before trusting sessionStorage
+                fetch(`${API_BASE}/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                .then(res => {
+                    if (res.ok) {
+                        setUser(JSON.parse(stored));
+                    } else {
+                        sessionStorage.clear();
+                    }
+                })
+                .catch(() => {
+                    // Network error → restore session so offline users aren't locked out
+                    setUser(JSON.parse(stored));
+                })
+                .finally(() => setLoading(false));
             }, []);
 
             const login = async (email, password) => {
@@ -167,8 +196,8 @@
     });
     const data = await res.json();
     if (res.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
         setUser(data.user);
         return { success: true };
     } else {
@@ -185,8 +214,8 @@
     });
     const data = await res.json();
     if (res.ok) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify(data.user));
         setUser(data.user);
         return { success: true };
     } else {
@@ -196,7 +225,7 @@
 };
 
             const logout = () => {
-                localStorage.clear();
+                sessionStorage.clear();
                 setUser(null);
             };
 
@@ -646,14 +675,14 @@ setApproxPrice(null);
                                     <div className="p-3 bg-blue-50 text-blue-600 rounded-xl"><Icon name="Activity" size={24} /></div>
                                     <div>
                                         <p className="text-gray-500 text-sm">Active Requests</p>
-                                        <p className="text-2xl font-bold">{requests.filter(r => r.status === 'In Progress' || r.status === 'Pending').length}</p>
+                                        <p className="text-2xl font-bold">{requests.filter(r => r.status === 'in_progress' || r.status === 'accepted' || r.status === 'pending').length}</p>
                                     </div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
                                     <div className="p-3 bg-green-50 text-green-600 rounded-xl"><Icon name="CheckCircle" size={24} /></div>
                                     <div>
                                         <p className="text-gray-500 text-sm">Completed</p>
-                                        <p className="text-2xl font-bold">{requests.filter(r => r.status === 'Completed' || r.status === 'Reviewed').length}</p>
+                                        <p className="text-2xl font-bold">{requests.filter(r => r.status === 'completed' || r.status === 'reviewed').length}</p>
                                     </div>
                                 </div>
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -685,10 +714,10 @@ setApproxPrice(null);
                                                 <div className="flex justify-between items-start mb-3">
                                                     <div className="flex items-center gap-4">
                                                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                                                            req.status === 'Completed' || req.status === 'Reviewed' ? 'bg-green-100 text-green-600' : 
-                                                            req.status === 'In Progress' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
+                                                            req.status === 'completed' || req.status === 'reviewed' ? 'bg-green-100 text-green-600' : 
+                                                            req.status === 'in_progress' || req.status === 'accepted' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
                                                         }`}>
-                                                            <Icon name={req.status === 'Completed' || req.status === 'Reviewed' ? 'CheckCircle' : 'Clock'} size={20} />
+                                                            <Icon name={req.status === 'completed' || req.status === 'reviewed' ? 'CheckCircle' : 'Clock'} size={20} />
                                                         </div>
                                                         <div>
                                                             <h4 className="font-bold text-gray-800">{req.issue_description}</h4>
@@ -705,10 +734,10 @@ Vehicle: {req.vehicle}
                                                     </div>
                                                     <div className="text-right">
                                                         <span className={`block text-xs font-bold px-2 py-1 rounded mb-1 ${
-                                                            req.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                            req.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
+                                                            req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                            req.status === 'in_progress' || req.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
                                                             'bg-green-100 text-green-700'
-                                                        }`}>{req.status}</span>
+                                                        }`}>{req.status.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>
                                                         {req.price && <p className="text-sm font-bold text-gray-800">₹{req.price}</p>}
                                                     </div>
                                                 </div>
@@ -782,7 +811,7 @@ Vehicle: {req.vehicle}
                                             <td className="p-4 text-sm text-gray-600">{req.price ? `₹${req.price}` : '-'}</td>
                                             <td className="p-4"><span className="text-xs font-bold px-2 py-1 bg-gray-100 rounded text-gray-600">{req.status}</span></td>
                                             <td className="p-4">
-                                                {req.status === 'Completed' && (
+                                                {req.status === 'completed' && (
                                                     <button onClick={() => setShowReviewModal(req)} className="text-sm text-orange-600 font-bold hover:underline">
                                                         Rate Service
                                                     </button>
@@ -916,29 +945,198 @@ className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:b
 
                     {/* Rating Modal */}
                     {showReviewModal && (
-                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-                            <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
-                                <h3 className="text-xl font-bold mb-2">Rate your service</h3>
-                                <p className="text-gray-500 mb-6">How was your experience with the mechanic for {showReviewModal.issue_description}?</p>
-                                <div className="flex justify-center gap-2 mb-8">
-                                    {[1, 2, 3, 4, 5].map(star => (
-                                        <button key={star} className="hover:scale-110 transition-transform">
-                                            <Icon name="Star" size={32} className="text-yellow-400 fill-yellow-400" />
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="bg-gray-50 p-4 rounded-lg mb-6 flex justify-between items-center">
-                                    <span className="text-gray-600">Total Paid</span>
-                                    <span className="text-xl font-bold text-slate-900">₹{showReviewModal.price}</span>
-                                </div>
-                                <div className="flex gap-3">
-                                    <button onClick={() => setShowReviewModal(null)} className="flex-1 py-3 rounded-lg border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">Skip</button>
-                                    <button onClick={() => submitReview(showReviewModal.id, 5)} className="flex-1 py-3 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800">Submit Review</button>
-                                </div>
-                            </div>
-                        </div>
+                        <RatingModal
+                            req={showReviewModal}
+                            onClose={() => setShowReviewModal(null)}
+                            onSubmit={submitReview}
+                        />
                     )}
                 </DashboardLayout>
+            );
+        }
+
+        // --- RATING MODAL COMPONENT (proper star selection) ---
+        function RatingModal({ req, onClose, onSubmit }) {
+            const [selected, setSelected] = useState(0);
+            const [hovered, setHovered] = useState(0);
+            return (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+                        <h3 className="text-xl font-bold mb-2">Rate your service</h3>
+                        <p className="text-gray-500 mb-6">How was your experience for <strong>{req.issue_description}</strong>?</p>
+                        <div className="flex justify-center gap-2 mb-4">
+                            {[1, 2, 3, 4, 5].map(star => (
+                                <button
+                                    key={star}
+                                    onClick={() => setSelected(star)}
+                                    onMouseEnter={() => setHovered(star)}
+                                    onMouseLeave={() => setHovered(0)}
+                                    className="hover:scale-125 transition-transform"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24"
+                                        fill={(hovered || selected) >= star ? '#facc15' : 'none'}
+                                        stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                    </svg>
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-center text-sm text-gray-500 mb-6">
+                            {['', 'Terrible 😞', 'Poor 😕', 'Okay 😐', 'Good 😊', 'Excellent! 🌟'][selected] || 'Tap a star to rate'}
+                        </p>
+                        <div className="bg-gray-50 p-4 rounded-lg mb-6 flex justify-between items-center">
+                            <span className="text-gray-600">Total Paid</span>
+                            <span className="text-xl font-bold text-slate-900">₹{req.price || '—'}</span>
+                        </div>
+                        <div className="flex gap-3">
+                            <button onClick={onClose} className="flex-1 py-3 rounded-lg border border-gray-200 font-bold text-gray-600 hover:bg-gray-50">Skip</button>
+                            <button
+                                onClick={() => selected > 0 && onSubmit(req.id, selected)}
+                                disabled={selected === 0}
+                                className="flex-1 py-3 rounded-lg bg-slate-900 text-white font-bold hover:bg-slate-800 disabled:opacity-40"
+                            >Submit Review</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- JOB MAP COMPONENT (Leaflet.js, free, no API key) ---
+        function JobMap({ jobs }) {
+            const mapRef = useRef(null);
+            const leafletMapRef = useRef(null);
+            const markersRef = useRef([]);
+
+            useEffect(() => {
+                if (!mapRef.current || !window.L) return;
+                if (!leafletMapRef.current) {
+                    leafletMapRef.current = L.map(mapRef.current).setView([17.385, 78.4867], 11);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; OpenStreetMap contributors'
+                    }).addTo(leafletMapRef.current);
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(pos => {
+                            const { latitude, longitude } = pos.coords;
+                            leafletMapRef.current.setView([latitude, longitude], 13);
+                            const providerIcon = L.divIcon({
+                                className: '',
+                                html: '<div style="background:#f97316;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35)"></div>',
+                                iconSize: [18, 18], iconAnchor: [9, 9]
+                            });
+                            L.marker([latitude, longitude], { icon: providerIcon })
+                                .addTo(leafletMapRef.current)
+                                .bindPopup('<b>📍 You are here</b>').openPopup();
+                        }, () => {});
+                    }
+                }
+                markersRef.current.forEach(m => m.remove());
+                markersRef.current = [];
+                jobs.forEach(job => {
+                    if (!job.location_text) return;
+                    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(job.location_text)}&format=json&limit=1`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data && data[0]) {
+                                const { lat, lon } = data[0];
+                                const jobIcon = L.divIcon({
+                                    className: '',
+                                    html: `<div style="background:#ef4444;color:white;font-size:10px;font-weight:bold;padding:4px 8px;border-radius:12px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🔧 #${job.id}</div>`,
+                                    iconSize: [64, 22], iconAnchor: [32, 11]
+                                });
+                                const marker = L.marker([parseFloat(lat), parseFloat(lon)], { icon: jobIcon })
+                                    .addTo(leafletMapRef.current)
+                                    .bindPopup(`<b>${job.issue_description}</b><br/>${job.location_text}`);
+                                markersRef.current.push(marker);
+                            }
+                        }).catch(() => {});
+                });
+            }, [jobs]);
+
+            return <div ref={mapRef} style={{ height: '280px', width: '100%', borderRadius: '12px', zIndex: 0 }} />;
+        }
+
+        // --- PROVIDER EARNINGS TAB (real data from backend) ---
+        function ProviderEarningsTab() {
+            const [earningsData, setEarningsData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const barRef = useRef(null);
+            const chartInstance = useRef(null);
+
+            useEffect(() => {
+                authFetch(`${API_BASE}/provider/earnings`)
+                    .then(r => r.json())
+                    .then(data => { setEarningsData(data); setLoading(false); })
+                    .catch(() => setLoading(false));
+            }, []);
+
+            useEffect(() => {
+                if (!barRef.current || !earningsData) return;
+                if (chartInstance.current) { chartInstance.current.destroy(); chartInstance.current = null; }
+                const jobs = earningsData.job_breakdown || [];
+                const labels = jobs.map(j =>
+                    j.created_at ? new Date(j.created_at).toLocaleDateString('en-IN', {day:'2-digit',month:'short'}) : `Job ${j.id}`
+                );
+                const prices = jobs.map(j => j.price || 0);
+                chartInstance.current = new Chart(barRef.current.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: labels.length > 0 ? labels : ['No jobs yet'],
+                        datasets: [{ label: 'Earnings (₹)', data: prices.length > 0 ? prices : [0], backgroundColor: '#f97316', borderRadius: 8 }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, ticks: { callback: v => '₹' + v } } }
+                    }
+                });
+                return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+            }, [earningsData]);
+
+            if (loading) return <div className="flex items-center justify-center h-64 text-gray-400 text-lg">Loading earnings...</div>;
+
+            const avg = earningsData?.average_rating;
+            const total = earningsData?.total_earnings || 0;
+            const completed = earningsData?.completed_jobs || 0;
+            const rated = earningsData?.rated_jobs || 0;
+
+            return (
+                <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-2xl shadow-lg">
+                            <p className="text-orange-100 text-xs font-bold uppercase mb-1">Total Earnings</p>
+                            <p className="text-4xl font-bold">₹{total.toLocaleString('en-IN')}</p>
+                            <p className="text-orange-200 text-sm mt-2">{completed} job{completed !== 1 ? 's' : ''} completed</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <p className="text-gray-500 text-xs font-bold uppercase mb-2">Your Rating</p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-4xl font-bold text-gray-800">{avg != null ? avg.toFixed(1) : '—'}</span>
+                                <div className="flex">
+                                    {[1,2,3,4,5].map(s => (
+                                        <svg key={s} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                            fill={avg && s <= Math.round(avg) ? '#facc15' : '#e5e7eb'}
+                                            stroke={avg && s <= Math.round(avg) ? '#facc15' : '#d1d5db'} strokeWidth="1">
+                                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                        </svg>
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-gray-400 text-xs mt-2">Based on {rated} rating{rated !== 1 ? 's' : ''}</p>
+                        </div>
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                            <p className="text-gray-500 text-xs font-bold uppercase mb-2">Avg Per Job</p>
+                            <p className="text-4xl font-bold text-gray-800">₹{completed > 0 ? Math.round(total / completed).toLocaleString('en-IN') : 0}</p>
+                            <p className="text-gray-400 text-xs mt-2">Per completed job</p>
+                        </div>
+                    </div>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                        <h3 className="font-bold text-gray-800 mb-4">Earnings Per Job</h3>
+                        {completed === 0
+                            ? <div className="h-48 flex items-center justify-center text-gray-400">Complete your first job to see your chart!</div>
+                            : <canvas ref={barRef} style={{maxHeight:'220px'}} />
+                        }
+                    </div>
+                </div>
             );
         }
 
@@ -1097,41 +1295,27 @@ const handleComplete = async (jobId) => {
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center">
                                             <span className="text-slate-400">Jobs Completed</span>
-                                            <span className="font-bold text-xl">{myJobs.filter(j => j.status === 'Completed').length}</span>
+                                            <span className="font-bold text-xl">{myJobs.filter(j => j.status === 'completed').length}</span>
                                         </div>
                                         <div className="w-full bg-slate-700 h-1 rounded-full">
-                                            <div className="bg-orange-500 h-1 rounded-full w-3/4"></div>
+                                            <div className="bg-orange-500 h-1 rounded-full" style={{width: `${Math.min(100, myJobs.filter(j=>j.status==='completed').length * 20)}%`}}></div>
                                         </div>
                                         <div className="flex justify-between items-center pt-2">
                                             <span className="text-slate-400">Earnings</span>
-                                            <span className="font-bold text-xl text-green-400">₹{myJobs.reduce((acc, j) => acc + (j.status === 'Completed' ? j.price : 0), 0)}</span>
+                                            <span className="font-bold text-xl text-green-400">₹{myJobs.reduce((acc, j) => acc + (j.status === 'completed' ? (j.price || 0) : 0), 0)}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                    <h3 className="font-bold text-gray-800 mb-4">Heatmap</h3>
-                                    <div className="h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-                                        Map Visualization Area
-                                    </div>
+                                    <h3 className="font-bold text-gray-800 mb-4">📍 Live Job Map</h3>
+                                    <JobMap jobs={availableJobs} />
                                 </div>
                             </div>
                         </div>
                     )}
                     {activeTab === 'earnings' && (
-                        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-                            <h2 className="text-2xl font-bold mb-6">Earnings Report</h2>
-                            <div className="h-64 flex items-end justify-between gap-2 px-4">
-                                {[40, 70, 30, 85, 50, 90, 60].map((h, i) => (
-                                    <div key={i} className="w-full bg-orange-100 rounded-t-lg relative group" style={{height: `${h}%`}}>
-                                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">₹{h * 10}</div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="flex justify-between mt-4 text-xs text-gray-500 font-bold uppercase">
-                                <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
-                            </div>
-                        </div>
+                        <ProviderEarningsTab />
                     )}
                 </DashboardLayout>
             );
@@ -1164,48 +1348,80 @@ useEffect(() => { fetchUsers(); fetchRequests(); }, []);
             const pieChartRef = useRef(null);
             const barChartRef = useRef(null);
 
+            const pieChartInstance = useRef(null);
+            const barChartInstance = useRef(null);
+
             useEffect(() => {
                 if (activeTab === 'analytics' && pieChartRef.current && barChartRef.current) {
-                    // Pie Chart - Issue Types
+                    // Destroy previous chart instances to avoid "canvas already in use" error
+                    if (pieChartInstance.current) { pieChartInstance.current.destroy(); pieChartInstance.current = null; }
+                    if (barChartInstance.current) { barChartInstance.current.destroy(); barChartInstance.current = null; }
+
+                    // Build real issue type distribution from requests data
+                    const issueCategories = ['Flat Tire', 'Battery Dead', 'Engine Failure', 'Brake Failure', 'Transmission Issue', 'Overheating', 'Other'];
+                    const issueCounts = issueCategories.map(cat => {
+                        if (cat === 'Other') {
+                            return requests.filter(r => !issueCategories.slice(0,-1).includes(r.issue_description)).length;
+                        }
+                        return requests.filter(r => r.issue_description === cat).length;
+                    });
+                    const hasIssueData = issueCounts.some(c => c > 0);
+
+                    // Pie Chart - Real Issue Types
                     const pieCtx = pieChartRef.current.getContext('2d');
-                    new Chart(pieCtx, {
+                    pieChartInstance.current = new Chart(pieCtx, {
                         type: 'pie',
                         data: {
-                            labels: ['Flat Tire', 'Battery Dead', 'Engine Failure', 'Brake Failure', 'Transmission', 'Other'],
+                            labels: issueCategories,
                             datasets: [{
-                                data: [35, 25, 15, 10, 10, 5],
-                                backgroundColor: ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#6b7280']
+                                data: hasIssueData ? issueCounts : [35, 25, 15, 10, 10, 3, 2],
+                                backgroundColor: ['#f97316', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#f59e0b', '#6b7280']
                             }]
                         },
                         options: {
                             responsive: true,
-                            plugins: {
-                                legend: { position: 'bottom' }
-                            }
+                            plugins: { legend: { position: 'bottom' } }
                         }
                     });
 
-                    // Bar Chart - Monthly Growth
+                    // Build real monthly earnings from requests data
+                    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const now = new Date();
+                    const last6Months = Array.from({length:6}, (_,i) => {
+                        const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+                        return { label: monthNames[d.getMonth()], year: d.getFullYear(), month: d.getMonth() };
+                    });
+                    const monthlyEarnings = last6Months.map(m =>
+                        requests
+                            .filter(r => r.price && r.created_at && new Date(r.created_at).getFullYear() === m.year && new Date(r.created_at).getMonth() === m.month)
+                            .reduce((sum, r) => sum + (r.price || 0), 0)
+                    );
+                    const hasEarningsData = monthlyEarnings.some(e => e > 0);
+
+                    // Bar Chart - Real Monthly Earnings
                     const barCtx = barChartRef.current.getContext('2d');
-                    new Chart(barCtx, {
+                    barChartInstance.current = new Chart(barCtx, {
                         type: 'bar',
                         data: {
-                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            labels: last6Months.map(m => m.label),
                             datasets: [{
                                 label: 'Total Earnings (₹)',
-                                data: [45000, 52000, 48000, 61000, 58000, 72000],
-                                backgroundColor: '#f97316'
+                                data: hasEarningsData ? monthlyEarnings : [45000, 52000, 48000, 61000, 58000, 72000],
+                                backgroundColor: '#f97316',
+                                borderRadius: 6
                             }]
                         },
                         options: {
                             responsive: true,
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
+                            scales: { y: { beginAtZero: true } }
                         }
                     });
                 }
-            }, [activeTab]);
+                return () => {
+                    if (pieChartInstance.current) { pieChartInstance.current.destroy(); pieChartInstance.current = null; }
+                    if (barChartInstance.current) { barChartInstance.current.destroy(); barChartInstance.current = null; }
+                };
+            }, [activeTab, requests]);
 
             const handleRemoveUser = async (id) => {
     if(confirm("Are you sure you want to remove this user?")) {

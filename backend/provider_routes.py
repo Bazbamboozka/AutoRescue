@@ -114,7 +114,26 @@ def get_earnings(current_user):
 
     total = sum(j.price for j in jobs if j.price)
 
+    # Cumulative average rating from all rated completed jobs
+    rated_jobs = [j for j in jobs if j.rating is not None]
+    avg_rating = round(sum(j.rating for j in rated_jobs) / len(rated_jobs), 2) if rated_jobs else None
+
+    # Per-job breakdown for chart (price + created_at)
+    job_breakdown = [
+        {
+            "id": j.id,
+            "price": j.price or 0,
+            "rating": j.rating,
+            "created_at": j.created_at.isoformat() if j.created_at else None,
+            "issue_description": j.issue_description
+        }
+        for j in jobs
+    ]
+
     return jsonify({
         "total_earnings": total,
-        "completed_jobs": len(jobs)
+        "completed_jobs": len(jobs),
+        "average_rating": avg_rating,
+        "rated_jobs": len(rated_jobs),
+        "job_breakdown": job_breakdown
     })
