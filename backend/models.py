@@ -30,5 +30,7 @@ class Request(db.Model):
     provider_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
     price = db.Column(db.Float, nullable=True)
+    approx_price = db.Column(db.Float, nullable=True)
+    last_quoted_by = db.Column(db.String(50), nullable=True) # "customer" or "provider"
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     rating = db.Column(db.Integer, nullable=True)

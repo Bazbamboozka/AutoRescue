@@ -23,6 +23,8 @@ def get_requests(current_user):
             "status": r.status,
             "provider_id": r.provider_id,
             "price": r.price,
+            "approx_price": r.approx_price,
+            "last_quoted_by": r.last_quoted_by,
             "created_at": r.created_at.isoformat() if r.created_at else None
         })
 
@@ -43,13 +45,79 @@ def accept_request(current_user, req_id):
         return jsonify({"message": "Request already taken"}), 400
 
     data = request.json
-    req.status = "accepted"
+    initial_price = data.get("price")
+    
+    if not initial_price:
+        return jsonify({"message": "Initial quote price required"}), 400
+        
+    # Constraint: Provider quote should not exceed approx_price + 500
+    if initial_price > (req.approx_price + 500):
+        return jsonify({"message": f"Your quote cannot exceed ₹{int(req.approx_price + 500)}"}), 400
+
+    req.status = "negotiating"
     req.provider_id = current_user.id
-    req.price = data.get("price") if data else None
+    req.price = initial_price
+    req.last_quoted_by = "provider"
 
     db.session.commit()
 
-    return jsonify({"message": "Request accepted"})
+    return jsonify({"message": "Initial quote sent. Status: negotiating"})
+
+
+@provider_bp.route("/negotiate/<int:req_id>", methods=["POST"])
+@token_required
+@role_required("provider")
+def negotiate_request(current_user, req_id):
+    req = Request.query.get(req_id)
+    if not req:
+        return jsonify({"message": "Request not found"}), 404
+        
+    if req.provider_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    data = request.json
+    action = data.get("action") # "accept" or "re-quote"
+
+    if action == "accept":
+        req.status = "accepted"
+    elif action == "re-quote":
+        new_price = data.get("price")
+        if not new_price:
+            return jsonify({"message": "Price required for re-quote"}), 400
+        
+        # Constraint: Provider quote should not exceed approx_price + 500
+        if new_price > (req.approx_price + 500):
+            return jsonify({"message": f"Your quote cannot exceed ₹{int(req.approx_price + 500)}"}), 400
+        
+        req.price = new_price
+        req.last_quoted_by = "provider"
+        req.status = "negotiating"
+    else:
+        return jsonify({"message": "Invalid action"}), 400
+
+    db.session.commit()
+    return jsonify({"message": f"Request {action}ed successfuly"})
+
+
+@provider_bp.route("/reject/<int:req_id>", methods=["POST"])
+@token_required
+@role_required("provider")
+def reject_request(current_user, req_id):
+    req = Request.query.get(req_id)
+    if not req:
+        return jsonify({"message": "Request not found"}), 404
+        
+    if req.provider_id != current_user.id:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    # Reset request to pending so other providers can see it
+    req.status = "pending"
+    req.provider_id = None
+    req.price = req.approx_price
+    req.last_quoted_by = "customer"
+
+    db.session.commit()
+    return jsonify({"message": "Request rejected and returned to pool"})
 
 
 @provider_bp.route("/update-status/<int:req_id>", methods=["POST"])
@@ -65,7 +133,7 @@ def update_status(current_user, req_id):
     data = request.json
     new_status = data.get("status")
 
-    allowed = ["accepted", "in_progress", "completed"]
+    allowed = ["accepted", "in_progress", "completed", "negotiating"]
 
     if new_status not in allowed:
         return jsonify({"message": "Invalid status"}), 400
@@ -96,6 +164,8 @@ def get_my_jobs(current_user):
             "issue_description": r.issue_description,
             "status": r.status,
             "price": r.price,
+            "approx_price": r.approx_price,
+            "last_quoted_by": r.last_quoted_by,
             "created_at": r.created_at.isoformat() if r.created_at else None
         })
 

@@ -596,7 +596,8 @@
     vehicle: '',
     issue: '',
     customIssue: '',
-    location: ''
+    location: '',
+    approx_price: ''
 });
 
 const [approxPrice, setApproxPrice] = useState(null);
@@ -628,14 +629,14 @@ const handleCreateRequest = async () => {
             body: JSON.stringify({
     issue_description: issue,
     location_text: newRequest.location,
-    vehicle: newRequest.vehicle
+    vehicle: newRequest.vehicle,
+    approx_price: parseFloat(newRequest.approx_price)
 })
 
         });
         if (res.ok) {
             setShowNewRequestModal(false);
-            setNewRequest({ vehicle:'', issue:'', customIssue:'', location:'' });
-setApproxPrice(null);
+            setNewRequest({ vehicle:'', issue:'', customIssue:'', location:'', approx_price:'' });
 
             fetchRequests();
         } else {
@@ -735,12 +736,45 @@ Vehicle: {req.vehicle}
                                                     <div className="text-right">
                                                         <span className={`block text-xs font-bold px-2 py-1 rounded mb-1 ${
                                                             req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                            req.status === 'negotiating' ? 'bg-orange-100 text-orange-700' :
                                                             req.status === 'in_progress' || req.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
                                                             'bg-green-100 text-green-700'
                                                         }`}>{req.status.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>
                                                         {req.price && <p className="text-sm font-bold text-gray-800">₹{req.price}</p>}
                                                     </div>
                                                 </div>
+                                                
+                                                {req.status === 'negotiating' && (
+                                                    <div className="mt-4 p-4 bg-orange-50 rounded-xl border border-orange-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                                                        <div>
+                                                            <p className="text-xs text-orange-700 font-bold uppercase mb-1">Negotiation Update</p>
+                                                            <p className="text-sm text-gray-700">
+                                                                {req.last_quoted_by === 'provider' 
+                                                                    ? `Provider quoted ₹${req.price}. Accept or counter?` 
+                                                                    : `Waiting for provider to respond to your ₹${req.price} offer.`}
+                                                            </p>
+                                                        </div>
+                                                        {req.last_quoted_by === 'provider' && (
+                                                            <div className="flex gap-2 w-full md:w-auto">
+                                                                <button 
+                                                                    onClick={() => handleNegotiate(req.id, 'accept')}
+                                                                    className="flex-1 px-4 py-2 bg-green-500 text-white font-bold rounded-lg text-xs"
+                                                                >
+                                                                    Accept ₹{req.price}
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const p = prompt("Enter your counter offer (₹):", req.price);
+                                                                        if (p) handleNegotiate(req.id, 're-quote', parseFloat(p));
+                                                                    }}
+                                                                    className="flex-1 px-4 py-2 bg-white border border-orange-500 text-orange-500 font-bold rounded-lg text-xs"
+                                                                >
+                                                                    Counter
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 <div className="grid grid-cols-4 gap-4 text-xs text-gray-500 border-t pt-3">
                                                     <div><span className="font-bold">Order ID:</span> #{req.id}</div>
                                                     <div><span className="font-bold">Time:</span> {req.time}</div>
@@ -870,10 +904,16 @@ className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:b
                                         </select>
                                     </div>
                                     {approxPrice && (
-    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-        Approx Price: ₹{approxPrice}
-    </div>
-)}
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">My Approx Price (₹)</label>
+                                            <input 
+                                                type="number"
+                                                className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-orange-500 outline-none"
+                                                value={newRequest.approx_price || approxPrice}
+                                                onChange={(e) => setNewRequest({...newRequest, approx_price: e.target.value})}
+                                            />
+                                        </div>
+                                    )}
 
                                     
                                     {newRequest.issue === 'Other' && (
@@ -1174,21 +1214,57 @@ useEffect(() => {
 }, []);
 
 
-const handleAccept = async (job) => {
-    const price = prompt("Enter your price (₹):") || 0;
-    try {
-        const res = await authFetch(`${API_BASE}/provider/accept/${job.id}`, {
-            method: 'POST',
-            body: JSON.stringify({ price: parseFloat(price) })
-        });
-        if (res.ok) { fetchAvailable(); fetchMyJobs(); }
-        else { const d = await res.json(); alert(d.message); }
-    } catch(e) { alert('Network error'); }
-};
+            const [showQuoteModal, setShowQuoteModal] = useState(null);
+            const [quotePrice, setQuotePrice] = useState("");
 
-const handleReject = (jobId) => {
-    setAvailableJobs(availableJobs.filter(j => j.id !== jobId));
-};
+            const handleSendQuote = async () => {
+                if (!showQuoteModal || !quotePrice) return;
+                const price = parseFloat(quotePrice);
+                if (price > (showQuoteModal.approx_price + 500)) {
+                    alert(`Quote cannot exceed ₹${showQuoteModal.approx_price + 500}`);
+                    return;
+                }
+                try {
+                    const res = await authFetch(`${API_BASE}/provider/accept/${showQuoteModal.id}`, {
+                        method: 'POST',
+                        body: JSON.stringify({ price: price })
+                    });
+                    if (res.ok) {
+                        setShowQuoteModal(null);
+                        setQuotePrice("");
+                        fetchAvailable();
+                        fetchMyJobs();
+                    } else {
+                        const d = await res.json();
+                        alert(d.message || "Failed to send quote");
+                    }
+                } catch(e) { alert("Network error"); }
+            };
+
+            const handleNegotiate = async (reqId, action, price) => {
+                try {
+                    const res = await authFetch(`${API_BASE}/provider/negotiate/${reqId}`, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: action, price: price })
+                    });
+                    if (res.ok) {
+                        fetchMyJobs();
+                        if (action === 're-quote') alert("Counter-offer sent!");
+                    } else {
+                        const d = await res.json();
+                        alert(d.message || "Negotiation failed");
+                    }
+                } catch(e) { alert("Network error"); }
+            };
+
+            const handleRejectJob = async (reqId) => {
+                if (!confirm("Reject this job and return it to the available pool?")) return;
+                try {
+                    const res = await authFetch(`${API_BASE}/provider/reject/${reqId}`, { method: 'POST' });
+                    if (res.ok) fetchMyJobs();
+                    else alert("Failed to reject");
+                } catch(e) { alert("Network error"); }
+            };
 
 const handleComplete = async (jobId) => {
     try {
@@ -1230,14 +1306,20 @@ const handleComplete = async (jobId) => {
                                             </div>
                                             <div className="flex items-center gap-3 w-full sm:w-auto">
                                                 <div className="text-right mr-4">
-                                                    <p className="font-bold text-slate-900">₹{job.price}</p>
-                                                    <p className="text-xs text-green-600">Est. 15m</p>
+                                                    <p className="font-bold text-slate-900">₹{job.price || job.approx_price}</p>
+                                                    <p className="text-[10px] text-green-600 font-bold">EST. 15M</p>
                                                 </div>
-                                                <button onClick={() => handleReject(job.id)} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg">
+                                                <button onClick={() => setAvailableJobs(availableJobs.filter(j => j.id !== job.id))} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg">
                                                     <Icon name="X" size={20} />
                                                 </button>
-                                                <button onClick={() => handleAccept(job)} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg">
-                                                    Accept
+                                                <button 
+                                                    onClick={() => {
+                                                        setShowQuoteModal(job);
+                                                        setQuotePrice(job.price || job.approx_price);
+                                                    }} 
+                                                    className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg text-sm"
+                                                >
+                                                    Accept & Quote
                                                 </button>
                                             </div>
                                         </div>
@@ -1276,7 +1358,52 @@ const handleComplete = async (jobId) => {
                                                     }`}>{job.status}</span>
                                                 </div>
                                             </div>
-                                            {job.status !== 'Completed' && (
+                                            {job.status === 'negotiating' && (
+                                                <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-100 mb-4">
+                                                    <div className="flex justify-between items-center mb-4">
+                                                        <div>
+                                                            <p className="text-xs text-orange-600 font-bold uppercase">Negotiation Price</p>
+                                                            <p className="text-xl font-bold text-gray-800">₹{job.price}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-xs text-gray-500 font-bold uppercase">Turn</p>
+                                                            <p className={`font-bold ${job.last_quoted_by === 'customer' ? 'text-green-600' : 'text-gray-400'}`}>
+                                                                {job.last_quoted_by === 'customer' ? 'Customer Countered' : 'Waiting for Customer'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex gap-2">
+                                                        {job.last_quoted_by === 'customer' && (
+                                                            <>
+                                                                <button 
+                                                                    onClick={() => handleNegotiate(job.id, 'accept')}
+                                                                    className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-bold text-sm"
+                                                                >
+                                                                    Accept ₹{job.price}
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const p = prompt("Enter counter offer (₹):", job.price);
+                                                                        if (p) handleNegotiate(job.id, 're-quote', parseFloat(p));
+                                                                    }}
+                                                                    className="flex-1 bg-white border border-orange-500 text-orange-500 py-2 rounded-lg font-bold text-sm"
+                                                                >
+                                                                    Counter Offer
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        <button 
+                                                            onClick={() => handleRejectJob(job.id)}
+                                                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 py-2 rounded-lg font-bold text-sm"
+                                                        >
+                                                            Reject & Quit
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {(job.status === 'accepted' || job.status === 'in_progress') && (
                                                 <button 
                                                     onClick={() => handleComplete(job.id)}
                                                     className="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-bold"
@@ -1306,12 +1433,43 @@ const handleComplete = async (jobId) => {
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                                     <h3 className="font-bold text-gray-800 mb-4">📍 Live Job Map</h3>
                                     <JobMap jobs={availableJobs} />
                                 </div>
                             </div>
+
+                            {/* Provider Quote Modal */}
+                            {showQuoteModal && (
+                                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+                                    <div className="bg-white rounded-2xl p-8 w-full max-w-sm shadow-2xl">
+                                        <h3 className="text-xl font-bold mb-2">Send Initial Quote</h3>
+                                        <p className="text-gray-500 text-sm mb-6">
+                                            User Budget: <strong>₹{showQuoteModal.approx_price}</strong><br/>
+                                            <span className="text-xs">Your quote cannot exceed ₹{showQuoteModal.approx_price + 500}</span>
+                                        </p>
+                                        <div className="mb-6">
+                                            <label className="block text-sm font-bold text-gray-700 mb-2">Your Price (₹)</label>
+                                            <input 
+                                                type="number"
+                                                className="w-full p-4 rounded-xl bg-gray-50 border border-gray-200 text-2xl font-bold focus:border-orange-500 outline-none"
+                                                value={quotePrice}
+                                                onChange={e => setQuotePrice(e.target.value)}
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <button onClick={() => setShowQuoteModal(null)} className="flex-1 py-3 font-bold text-gray-500 bg-gray-100 rounded-lg">Cancel</button>
+                                            <button 
+                                                onClick={handleSendQuote}
+                                                className="flex-1 py-3 font-bold text-white bg-slate-900 rounded-lg hover:bg-slate-800"
+                                            >
+                                                Send Quote
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                     {activeTab === 'earnings' && (
@@ -1433,7 +1591,7 @@ useEffect(() => { fetchUsers(); fetchRequests(); }, []);
     }
 };
 
-            const totalEarnings = requests.reduce((acc, r) => acc + r.price, 0);
+            const totalEarnings = requests.reduce((acc, r) => acc + (r.price || 0), 0);
 
             const tabs = [
                 { id: 'users', label: 'User Management', icon: 'Users' },
