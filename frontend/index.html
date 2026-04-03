@@ -1622,7 +1622,15 @@ const fetchRequests = async () => {
     } catch(e) { console.error(e); }
 };
 
-useEffect(() => { fetchUsers(); fetchRequests(); }, []);
+            useEffect(() => {
+                fetchUsers();
+                fetchRequests();
+                const interval = setInterval(() => {
+                    fetchUsers();
+                    fetchRequests();
+                }, 5000);
+                return () => clearInterval(interval);
+            }, []);
 
             const pieChartRef = useRef(null);
             const barChartRef = useRef(null);
