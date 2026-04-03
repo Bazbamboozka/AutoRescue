@@ -47,7 +47,8 @@ def accept_request(current_user, req_id):
     data = request.json
     try:
         initial_price = float(data.get("price"))
-        approx_price = float(req.approx_price or 0)
+        # Use approx_price if available, or fallback to current record price
+        approx_price = float(req.approx_price or req.price or 0)
     except (TypeError, ValueError):
         return jsonify({"message": "Initial quote price required and must be a number"}), 400
         
@@ -84,7 +85,8 @@ def negotiate_request(current_user, req_id):
     elif action == "re-quote":
         try:
             new_price = float(data.get("price"))
-            approx_price = float(req.approx_price or 0)
+            # Use approx_price if available, or fallback to current record price
+            approx_price = float(req.approx_price or req.price or 0)
         except (TypeError, ValueError):
             return jsonify({"message": "Price required for re-quote and must be a number"}), 400
         

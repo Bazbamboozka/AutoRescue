@@ -82,7 +82,8 @@ def negotiate_request(current_user, req_id):
     elif action == "re-quote":
         try:
             new_price = float(data.get("price"))
-            approx_price = float(req.approx_price or 0)
+            # Use approx_price if available, otherwise fallback to current record price
+            approx_price = float(req.approx_price or req.price or 0)
         except (TypeError, ValueError):
             return jsonify({"message": "Invalid price format"}), 400
         

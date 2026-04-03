@@ -16,6 +16,10 @@ class User(db.Model):
     company_name = db.Column(db.String(120))
     is_active = db.Column(db.Boolean, default=True)
 
+    # Relationships
+    customer_requests = db.relationship("Request", foreign_keys="Request.customer_id", backref="customer", cascade="all, delete-orphan", lazy=True)
+    provider_requests = db.relationship("Request", foreign_keys="Request.provider_id", backref="provider", lazy=True)
+
 
 class Request(db.Model):
     __tablename__ = "request"

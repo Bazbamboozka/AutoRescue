@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, current_app
-from models import db, User
+from models import db, User, Request
 from flask_bcrypt import Bcrypt
 import jwt
 import datetime
@@ -72,6 +72,12 @@ def register():
     )
 
     db.session.add(user)
+    db.session.flush()
+
+    # Clear any old records if SQLite reuses user IDs
+    Request.query.filter_by(customer_id=user.id).delete()
+    Request.query.filter_by(provider_id=user.id).delete()
+
     db.session.commit()
 
     token = generate_token(user)
