@@ -1808,9 +1808,9 @@ useEffect(() => { fetchUsers(); fetchRequests(); }, []);
         function App() {
             const { user } = useAuth();
             if (!user) return <LoginSignupPage />;
-            if (user.role === "admin") return <AdminDashboard />;
-            if (user.role === "provider") return <ProviderDashboard />;
-            return <CustomerDashboard />;
+            if (user.role === "admin") return <AdminDashboard key={user.id} />;
+            if (user.role === "provider") return <ProviderDashboard key={user.id} />;
+            return <CustomerDashboard key={user.id} />;
         }
 
         // --- ROOT COMPONENT ---
