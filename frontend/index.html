@@ -1877,9 +1877,21 @@ const fetchRequests = async () => {
                                                 <td className="p-4 font-bold text-slate-900">#{req.id}</td>
                                                 <td className="p-4 text-sm text-gray-700">{req.customer_name}</td>
                                                 <td className="p-4">
-                                                    <span className={`text-xs font-medium px-2 py-1 rounded ${req.provider_name === 'Not Assigned' ? 'bg-gray-100 text-gray-500' : 'bg-blue-50 text-blue-600'}`}>
-                                                        {req.provider_name}
-                                                    </span>
+                                                    <div className="flex flex-col gap-0.5">
+                                                        <span className={`text-sm font-bold ${req.provider_name === 'Not Assigned' ? 'text-gray-400 italic' : 'text-slate-800'}`}>
+                                                            {req.provider_name}
+                                                        </span>
+                                                        {req.provider_phone && (
+                                                            <div className="flex items-center gap-1 text-[10px] text-blue-600 font-medium">
+                                                                <Icon name="Phone" size={10} /> {req.provider_phone}
+                                                            </div>
+                                                        )}
+                                                        {req.provider_email && (
+                                                            <div className="flex items-center gap-1 text-[10px] text-gray-500 font-medium">
+                                                                <Icon name="Mail" size={10} /> {req.provider_email}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="p-4 text-sm text-gray-600">{req.issue_description}</td>
                                                 <td className="p-4 text-xs font-bold text-slate-500">{req.vehicle || '—'}</td>
