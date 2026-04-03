@@ -43,6 +43,8 @@ def get_requests(current_user):
             "vehicle": getattr(r, "vehicle", None),
             "status": r.status,
             "price": r.price,
+            "customer_name": r.customer.name if r.customer else "Unknown",
+            "provider_name": r.provider.name if r.provider else "Not Assigned",
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "rating": r.rating
         })
