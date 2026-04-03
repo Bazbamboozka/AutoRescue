@@ -72,12 +72,12 @@ def register():
     )
 
     db.session.add(user)
-    db.session.flush()
+    db.session.commit()
 
-    # Clear any old records if SQLite reuses user IDs
+    # FORCEFUL CLEANUP: Ensure a brand new user has zero inherited history
+    # This deletes any orders that might have existed if the database ID was reused
     Request.query.filter_by(customer_id=user.id).delete()
     Request.query.filter_by(provider_id=user.id).delete()
-
     db.session.commit()
 
     token = generate_token(user)
