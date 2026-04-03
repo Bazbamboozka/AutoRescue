@@ -662,6 +662,22 @@ const handleCreateRequest = async () => {
     } catch(e) { alert('Network error'); }
 };
 
+            const handleNegotiate = async (reqId, action, price) => {
+                try {
+                    const res = await authFetch(`${API_BASE}/customer/negotiate/${reqId}`, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: action, price: price })
+                    });
+                    if (res.ok) {
+                        fetchRequests();
+                        if (action === 're-quote') alert("Counter-offer sent!");
+                    } else {
+                        const d = await res.json();
+                        alert(d.message || "Negotiation failed");
+                    }
+                } catch(e) { alert("Network error"); }
+            };
+
             const tabs = [
                 { id: 'dashboard', label: 'Dashboard', icon: 'LayoutDashboard' },
                 { id: 'history', label: 'History', icon: 'Clock' },

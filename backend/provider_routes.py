@@ -45,14 +45,15 @@ def accept_request(current_user, req_id):
         return jsonify({"message": "Request already taken"}), 400
 
     data = request.json
-    initial_price = data.get("price")
-    
-    if not initial_price:
-        return jsonify({"message": "Initial quote price required"}), 400
+    try:
+        initial_price = float(data.get("price"))
+        approx_price = float(req.approx_price or 0)
+    except (TypeError, ValueError):
+        return jsonify({"message": "Initial quote price required and must be a number"}), 400
         
     # Constraint: Provider quote should not exceed approx_price + 500
-    if initial_price > (req.approx_price + 500):
-        return jsonify({"message": f"Your quote cannot exceed ₹{int(req.approx_price + 500)}"}), 400
+    if initial_price > (approx_price + 500):
+        return jsonify({"message": f"Your quote cannot exceed ₹{int(approx_price + 500)}"}), 400
 
     req.status = "negotiating"
     req.provider_id = current_user.id
@@ -81,13 +82,15 @@ def negotiate_request(current_user, req_id):
     if action == "accept":
         req.status = "accepted"
     elif action == "re-quote":
-        new_price = data.get("price")
-        if not new_price:
-            return jsonify({"message": "Price required for re-quote"}), 400
+        try:
+            new_price = float(data.get("price"))
+            approx_price = float(req.approx_price or 0)
+        except (TypeError, ValueError):
+            return jsonify({"message": "Price required for re-quote and must be a number"}), 400
         
         # Constraint: Provider quote should not exceed approx_price + 500
-        if new_price > (req.approx_price + 500):
-            return jsonify({"message": f"Your quote cannot exceed ₹{int(req.approx_price + 500)}"}), 400
+        if new_price > (approx_price + 500):
+            return jsonify({"message": f"Your quote cannot exceed ₹{int(approx_price + 500)}"}), 400
         
         req.price = new_price
         req.last_quoted_by = "provider"

@@ -22,6 +22,8 @@ def get_requests(current_user):
             "vehicle": r.vehicle,
             "status": r.status,
             "price": r.price,
+            "approx_price": r.approx_price,
+            "last_quoted_by": r.last_quoted_by,
             "rating": r.rating,
             "created_at": r.created_at.isoformat() if r.created_at else None
         })
@@ -78,13 +80,15 @@ def negotiate_request(current_user, req_id):
     if action == "accept":
         req.status = "accepted"
     elif action == "re-quote":
-        new_price = data.get("price")
-        if not new_price:
-            return jsonify({"message": "Price required for re-quote"}), 400
+        try:
+            new_price = float(data.get("price"))
+            approx_price = float(req.approx_price or 0)
+        except (TypeError, ValueError):
+            return jsonify({"message": "Invalid price format"}), 400
         
         # Constraint: Customer quote should not go below approx_price - 500
-        if new_price < (req.approx_price - 500):
-            return jsonify({"message": f"Your quote cannot be below ₹{int(req.approx_price - 500)}"}), 400
+        if new_price < (approx_price - 500):
+            return jsonify({"message": f"Your quote cannot be below ₹{int(approx_price - 500)}"}), 400
         
         req.price = new_price
         req.last_quoted_by = "customer"
@@ -93,7 +97,7 @@ def negotiate_request(current_user, req_id):
         return jsonify({"message": "Invalid action"}), 400
 
     db.session.commit()
-    return jsonify({"message": f"Request {action}ed successfuly"})
+    return jsonify({"message": f"Request {action}ed successfully"})
 
 
 @customer_bp.route("/requests/<int:req_id>/rate", methods=["POST"])
