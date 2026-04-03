@@ -556,6 +556,7 @@
             const [showReviewModal, setShowReviewModal] = useState(null);
             const [showNewRequestModal, setShowNewRequestModal] = useState(false);
             const [showSupportModal, setShowSupportModal] = useState(false);
+            const [showNegotiateModal, setShowNegotiateModal] = useState(null);
 
             const issueTypes = [
                 "Flat Tire",
@@ -784,10 +785,7 @@ Vehicle: {req.vehicle}
                                                                     Accept ₹{req.price}
                                                                 </button>
                                                                 <button 
-                                                                    onClick={() => {
-                                                                        const p = prompt("Enter your counter offer (₹):", req.price);
-                                                                        if (p) handleNegotiate(req.id, 're-quote', parseFloat(p));
-                                                                    }}
+                                                                    onClick={() => setShowNegotiateModal(req)}
                                                                     className="flex-1 px-4 py-2 bg-white border border-orange-500 text-orange-500 font-bold rounded-lg text-xs"
                                                                 >
                                                                     Counter
@@ -877,6 +875,17 @@ Vehicle: {req.vehicle}
                                 </tbody>
                             </table>
                         </div>
+                    )}
+
+                    {showNegotiateModal && (
+                        <NegotiationModal
+                            req={showNegotiateModal}
+                            onClose={() => setShowNegotiateModal(null)}
+                            onSubmit={(id, action, price) => {
+                                handleNegotiate(id, action, price);
+                                setShowNegotiateModal(null);
+                            }}
+                        />
                     )}
 
                     {/* New Request Modal */}
@@ -1057,7 +1066,57 @@ className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:b
             );
         }
 
-        // --- JOB MAP COMPONENT (Leaflet.js, free, no API key) ---
+        // --- NEGOTIATION MODAL (Professional counter-offer UI) ---
+        function NegotiationModal({ req, onClose, onSubmit }) {
+            const [price, setPrice] = useState(req.price);
+            const isProvider = req.last_quoted_by === 'customer';
+            const limit = isProvider ? (req.approx_price + 500) : (req.approx_price - 500);
+
+            return (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-md">
+                    <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl border border-gray-100 transform scale-110">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Counter Offer</h3>
+                            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
+                                <Icon name="X" size={20} />
+                            </button>
+                        </div>
+                        <div className="mb-8 text-center">
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Target Price Range</span>
+                            <div className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 rounded-full text-white text-sm font-bold shadow-lg shadow-slate-200">
+                                <Icon name="BarChart3" size={14} />
+                                <span>₹{(req.approx_price - 500)} — ₹{(req.approx_price + 500)}</span>
+                            </div>
+                        </div>
+                        <div className="mb-8">
+                            <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-3 ml-1 text-center">Your Bid (₹)</label>
+                            <div className="relative group">
+                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <span className="text-3xl font-black text-slate-300 group-focus-within:text-orange-500 transition-colors">₹</span>
+                                </div>
+                                <input 
+                                    type="number"
+                                    className="w-full pl-10 pr-4 py-6 bg-slate-50 border-2 border-transparent focus:border-orange-500 focus:bg-white rounded-2xl text-4xl font-black text-slate-900 outline-none transition-all text-center"
+                                    value={price}
+                                    onChange={e => setPrice(e.target.value)}
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => onSubmit(req.id, 're-quote', parseFloat(price))}
+                            disabled={!price || price <= 0}
+                            className="w-full py-5 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-black text-lg rounded-2xl shadow-xl shadow-orange-200 transition-all flex items-center justify-center gap-3"
+                        >
+                            <Icon name="Send" size={20} />
+                            Send Offer
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // --- JOB MAP COMPONENT ---
         function JobMap({ jobs }) {
             const mapRef = useRef(null);
             const leafletMapRef = useRef(null);
@@ -1231,6 +1290,7 @@ useEffect(() => {
 
 
             const [showQuoteModal, setShowQuoteModal] = useState(null);
+            const [showNegotiateModal, setShowNegotiateModal] = useState(null);
             const [quotePrice, setQuotePrice] = useState("");
 
             const handleSendQuote = async () => {
@@ -1350,28 +1410,34 @@ const handleComplete = async (jobId) => {
                                 ) : (
                                     myJobs.map(job => (
                                         <div key={job.id} className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-blue-500">
-                                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+                                            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-4">
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-bold uppercase">Order ID</p>
+                                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-tighter">Order ID</p>
                                                     <p className="font-bold text-gray-800">#{job.id}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-bold uppercase">Location</p>
-                                                    <p className="font-bold text-gray-800">{job.location_text}</p>
+                                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-tighter">Location</p>
+                                                    <p className="font-bold text-gray-800 truncate">{job.location_text}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-bold uppercase">Issue</p>
+                                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-tighter">Issue</p>
                                                     <p className="font-bold text-gray-800">{job.issue_description}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-bold uppercase">Time</p>
-                                                    <p className="font-bold text-gray-800">{job.acceptedAt || job.time}</p>
+                                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-tighter">Price</p>
+                                                    <p className="font-bold text-green-600">₹{job.price}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-xs text-gray-500 font-bold uppercase">Status</p>
-                                                    <span className={`text-xs font-bold px-2 py-1 rounded ${
-                                                        job.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-tighter">Status</p>
+                                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${
+                                                        ['completed', 'reviewed'].includes(job.status) ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                                     }`}>{job.status}</span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 font-bold uppercase tracking-tighter">Rating</p>
+                                                    <p className="font-bold text-yellow-500">
+                                                        {job.rating ? `${job.rating} ★` : (['completed', 'reviewed'].includes(job.status) ? 'Pending...' : '—')}
+                                                    </p>
                                                 </div>
                                             </div>
                                             {job.status === 'negotiating' && (
@@ -1399,10 +1465,7 @@ const handleComplete = async (jobId) => {
                                                                     Accept ₹{job.price}
                                                                 </button>
                                                                 <button 
-                                                                    onClick={() => {
-                                                                        const p = prompt("Enter counter offer (₹):", job.price);
-                                                                        if (p) handleNegotiate(job.id, 're-quote', parseFloat(p));
-                                                                    }}
+                                                                    onClick={() => setShowNegotiateModal(job)}
                                                                     className="flex-1 bg-white border border-orange-500 text-orange-500 py-2 rounded-lg font-bold text-sm"
                                                                 >
                                                                     Counter Offer
@@ -1438,14 +1501,22 @@ const handleComplete = async (jobId) => {
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center">
                                             <span className="text-slate-400">Jobs Completed</span>
-                                            <span className="font-bold text-xl">{myJobs.filter(j => j.status === 'completed').length}</span>
+                                            <span className="font-bold text-xl">{myJobs.filter(j => ['completed', 'reviewed'].includes(j.status)).length}</span>
                                         </div>
                                         <div className="w-full bg-slate-700 h-1 rounded-full">
-                                            <div className="bg-orange-500 h-1 rounded-full" style={{width: `${Math.min(100, myJobs.filter(j=>j.status==='completed').length * 20)}%`}}></div>
+                                            <div className="bg-orange-500 h-1 rounded-full" style={{width: `${Math.min(100, myJobs.filter(j => ['completed', 'reviewed'].includes(j.status)).length * 20)}%`}}></div>
                                         </div>
                                         <div className="flex justify-between items-center pt-2">
                                             <span className="text-slate-400">Earnings</span>
-                                            <span className="font-bold text-xl text-green-400">₹{myJobs.reduce((acc, j) => acc + (j.status === 'completed' ? (j.price || 0) : 0), 0)}</span>
+                                            <span className="font-bold text-xl text-green-400">₹{myJobs.reduce((acc, j) => acc + (['completed', 'reviewed'].includes(j.status) ? (j.price || 0) : 0), 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2 text-xs">
+                                            <span className="text-slate-400">Avg. Rating</span>
+                                            <span className="font-bold text-yellow-400">
+                                                {myJobs.filter(j => j.rating).length > 0
+                                                    ? (myJobs.filter(j => j.rating).reduce((acc, j) => acc + j.rating, 0) / myJobs.filter(j => j.rating).length).toFixed(1)
+                                                    : '0.0'} ★ ({myJobs.filter(j => j.rating).length})
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -1485,6 +1556,16 @@ const handleComplete = async (jobId) => {
                                         </div>
                                     </div>
                                 </div>
+                            )}
+                            {showNegotiateModal && (
+                                <NegotiationModal
+                                    req={showNegotiateModal}
+                                    onClose={() => setShowNegotiateModal(null)}
+                                    onSubmit={(id, action, price) => {
+                                        handleNegotiate(id, action, price);
+                                        setShowNegotiateModal(null);
+                                    }}
+                                />
                             )}
                         </div>
                     )}
@@ -1567,7 +1648,7 @@ useEffect(() => { fetchUsers(); fetchRequests(); }, []);
                     });
                     const monthlyEarnings = last6Months.map(m =>
                         requests
-                            .filter(r => r.price && r.created_at && new Date(r.created_at).getFullYear() === m.year && new Date(r.created_at).getMonth() === m.month)
+                            .filter(r => ['completed', 'reviewed'].includes(r.status) && r.price && r.created_at && new Date(r.created_at).getFullYear() === m.year && new Date(r.created_at).getMonth() === m.month)
                             .reduce((sum, r) => sum + (r.price || 0), 0)
                     );
                     const hasEarningsData = monthlyEarnings.some(e => e > 0);
@@ -1607,7 +1688,9 @@ useEffect(() => { fetchUsers(); fetchRequests(); }, []);
     }
 };
 
-            const totalEarnings = requests.reduce((acc, r) => acc + (r.price || 0), 0);
+            const totalEarnings = requests
+                .filter(r => ['completed', 'reviewed'].includes(r.status))
+                .reduce((acc, r) => acc + (r.price || 0), 0);
 
             const tabs = [
                 { id: 'users', label: 'User Management', icon: 'Users' },
